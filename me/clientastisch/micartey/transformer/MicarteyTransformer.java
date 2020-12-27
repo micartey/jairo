@@ -12,6 +12,7 @@ import me.clientastisch.micartey.transformer.annotations.Overwrite;
 import java.io.InputStream;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
+import java.lang.instrument.Instrumentation;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
 import java.util.List;
@@ -20,14 +21,6 @@ import java.util.concurrent.atomic.AtomicReference;
 public class MicarteyTransformer implements ClassFileTransformer {
 
     private final List<Class<?>> observed;
-
-    /**
-     * premain
-     * -javaagent:jarpath[options]
-     * Manifest: <bold> Premain-Class: TestAgent <bold />
-     *
-     * @param arguments
-     */
 
     public MicarteyTransformer(Class<?>... arguments) {
         for(Class<?> clazz : arguments) {
@@ -79,5 +72,17 @@ public class MicarteyTransformer implements ClassFileTransformer {
         }
 
         return reference.get();
+    }
+
+    public void retransform(Instrumentation instrumentation) {
+        instrumentation.addTransformer(this, true);
+
+        for (Class<?> target : instrumentation.getAllLoadedClasses()) {
+            observed.stream().filter(observe -> observe.getAnnotation(Hook.class).value().equals(target.getName())).forEach(value -> {
+                Try.run(() -> {
+                    instrumentation.retransformClasses(target);
+                }).onFailure(Throwable::printStackTrace);
+            });
+        }
     }
 }
