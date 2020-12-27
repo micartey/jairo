@@ -16,6 +16,20 @@ public static void premain(String arguments, Instrumentation instrumentation) {
 }
 ```
 
+```text
+Manifest-Version: 1.0
+Agent-Class: my.path.to.Agent
+Can-Redefine-Classes: true
+Can-Retransform-Classes: true
+```
+
+```java
+public static void agentmain(String args, Instrumentation instrumentation) {
+    MicarteyTransformer transformer = new MicarteyTransformer(Test.class);
+    transformer.retransform(instrumentation);
+}
+```
+
 ```java
 @Hook("my.path.to.Class")
 public interface Test {
