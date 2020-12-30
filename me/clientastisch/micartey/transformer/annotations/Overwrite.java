@@ -11,8 +11,6 @@ public @interface Overwrite {
 
     Type value();
 
-    String[] body();
-
     enum Type {
         BEFORE, AFTER, REPLACE
     }
