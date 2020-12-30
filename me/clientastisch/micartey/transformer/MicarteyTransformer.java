@@ -1,27 +1,33 @@
 package me.clientastisch.micartey.transformer;
 
 import io.vavr.control.Try;
-import javassist.*;
+import javassist.ClassPool;
+import javassist.CtClass;
+import javassist.CtField;
+import javassist.CtMethod;
+import me.clientastisch.micartey.transformer.annotations.FieldName;
 import me.clientastisch.micartey.transformer.annotations.Hook;
+import me.clientastisch.micartey.transformer.annotations.MethodName;
 import me.clientastisch.micartey.transformer.annotations.Overwrite;
 
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
 import java.lang.instrument.Instrumentation;
-import java.lang.invoke.WrongMethodTypeException;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class MicarteyTransformer implements ClassFileTransformer {
 
-    private final List<Class<? extends Micartey>> observed;
+    private final List<Class<?>> observed;
 
-    public MicarteyTransformer(Class<? extends Micartey>... arguments) {
+    public MicarteyTransformer(Class<?>... arguments) {
         if (!Arrays.stream(arguments).allMatch(target -> target.isAnnotationPresent(Hook.class)))
             throw new IllegalStateException("Some class[es] are missing the annotation: " + Hook.class.getName());
+
+        if (!Arrays.stream(arguments).allMatch(target -> target.isAnnotationPresent(FieldName.class)))
+            throw new IllegalStateException("Some class[es] are missing the annotation: " + FieldName.class.getName());
 
         this.observed = Arrays.asList(arguments);
     }
@@ -30,27 +36,28 @@ public class MicarteyTransformer implements ClassFileTransformer {
     public byte[] transform(java.lang.ClassLoader loader, java.lang.String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws IllegalClassFormatException {
         AtomicReference<byte[]> reference = new AtomicReference<>(classfileBuffer);
 
-        for(Class<? extends Micartey> target : observed) {
+        for(Class<?> target : observed) {
             if (!target.getAnnotation(Hook.class).value().equals(className.replace("/", ".")))
                 continue;
 
             ClassPool pool = ClassPool.getDefault();
             CtClass ctClass = Try.ofCallable(() -> pool.get(target.getAnnotation(Hook.class).value())).getOrNull();
 
-            Micartey instance = Try.ofCallable(() -> target.getConstructor().newInstance()).getOrNull();
+            FieldName field = target.getAnnotation(FieldName.class);
 
             Arrays.stream(target.getMethods()).filter(method -> method.isAnnotationPresent(Overwrite.class)).forEach(method -> {
                 Overwrite overwrite = method.getAnnotation(Overwrite.class);
+                MethodName name = method.getAnnotation(MethodName.class);
 
                 Try.run(() -> {
-                    CtField field = CtField.make("private final " + target.getName() + " " + instance.getFieldName() + " = new " + target.getName() + "();", ctClass);
-                    ctClass.addField(field);
+                    CtField ctField = CtField.make("private final " + target.getName() + " " + field.value() + " = new " + target.getName() + "();", ctClass);
+                    ctClass.addField(ctField);
                 }).onFailure(Throwable::printStackTrace);
 
                 Try.run(() -> {
-                    CtMethod ctMethod = ctClass.getDeclaredMethod(method.getName());
+                    CtMethod ctMethod = ctClass.getDeclaredMethod(name != null ? name.value() : method.getName());
 
-                    StringBuilder builder = new StringBuilder("this." + instance.getFieldName() + "." + method.getName() + "(");
+                    StringBuilder builder = new StringBuilder("this." + field.value() + "." + method.getName() + "(");
 
                     for (int index = 0; index < method.getParameterCount(); index++) {
                         builder.append("$" + index);
