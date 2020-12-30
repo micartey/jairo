@@ -15,13 +15,14 @@
 
 ```java
 @Hook("my.path.to.Class")
-public interface Test {
+@FieldName("myTestInstance")
+public class Test {
 
-    @Overwrite(
-            value = Overwrite.Type.AFTER,
-            body = "System.out.println(\"test\");"
-    )
-    void $method();
+    @MethodName("myMethod")
+    @Overwrite(Overwrite.Type.AFTER)
+    public void method(Object instance, Object parameter1, ...) {
+        System.out.println("test");
+    }
 
 }
 ```
