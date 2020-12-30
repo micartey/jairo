@@ -68,8 +68,6 @@ public class MicarteyTransformer implements ClassFileTransformer {
 
                     builder.append(");");
 
-                    System.out.println(ctMethod.getReturnType());
-
                     switch (overwrite.value()) {
                         case BEFORE:
                             ctMethod.insertBefore(builder.toString());
