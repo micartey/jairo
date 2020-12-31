@@ -21,8 +21,13 @@ public class Test {
     @Name("myMethod")
     @Parameter({String.class})
     @Overwrite(Overwrite.Type.AFTER)
-    public void method(Object instance, Object parameter1, ...) {
-        System.out.println("test");
+    public void method(Object instance, String parameter1) {
+        System.out.println("Hello World");
+    }
+
+    @Overwrite(Overwrite.Type.BEFORE)
+    public void anotherMethod(Object instance, String parameter1) {
+        System.out.println("Hello World!");
     }
 
 }
