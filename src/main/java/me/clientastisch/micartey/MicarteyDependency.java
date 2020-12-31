@@ -17,4 +17,5 @@ public class MicarteyDependency {
     public MicarteyDependency(List<URL> urls) {
         this(urls, MicarteyDependency.class.getClassLoader());
     }
+
 }
