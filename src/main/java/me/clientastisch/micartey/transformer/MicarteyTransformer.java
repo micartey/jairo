@@ -44,11 +44,11 @@ public class MicarteyTransformer implements ClassFileTransformer {
                 Field field = target.getAnnotation(Field.class);
 
                 Try.run(() -> {
-                    CtField ctField = CtField.make("private final " + target.getName() + " " + field.value() + " = new " + target.getName() + "();", ctClass);
+                    CtField ctField = CtField.make(this.buildFiled(field, target), ctClass);
                     ctClass.addField(ctField);
 
                     CtMethod ctMethod = this.getMethod(ctClass, method);
-                    String methodCall = this.buildMethodCall(field, method);
+                    String methodCall = this.buildInvoke(field, method);
 
                     switch (overwrite.value()) {
                         case BEFORE:
@@ -58,10 +58,7 @@ public class MicarteyTransformer implements ClassFileTransformer {
                             ctMethod.insertAfter(methodCall);
                             break;
                         case REPLACE:
-                            if (!ctMethod.getReturnType().equals(this.classPool.get("javassist.CtPrimitiveType")))
-                                ctMethod.setBody("return " + methodCall);
-                            else
-                                ctMethod.setBody(methodCall);
+                            ctMethod.setBody(methodCall);
                             break;
                     }
 
@@ -90,7 +87,7 @@ public class MicarteyTransformer implements ClassFileTransformer {
         }).toArray(CtClass[]::new));
     }
 
-    private String buildMethodCall(Field field, Method method) {
+    private String buildInvoke(Field field, Method method) {
         StringBuilder builder = new StringBuilder("this." + field.value() + "." + method.getName() + "(");
 
         for (int index = 0; index < method.getParameterCount(); index++) {
@@ -100,7 +97,18 @@ public class MicarteyTransformer implements ClassFileTransformer {
                 builder.append(",");
         }
 
+        if (method.isAnnotationPresent(Return.class))
+            builder.insert(0, "return ");
+
         return builder.append(");").toString();
+    }
+
+    private String buildFiled(Field field, Class<?> target) {
+        return String.format(
+                "private final %s %s = new %s(%s))",
+                target.getName(), field.value(), target.getName(),
+                Arrays.stream(target.getConstructors()).anyMatch(var -> var.getParameterCount() == 1) ? "$1" : ""
+        );
     }
 
     public void retransform(Instrumentation instrumentation) {
