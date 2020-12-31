@@ -14,11 +14,12 @@
 ## How to use `Micartey`
 
 ```java
+@Field("myTestInstance")
 @Hook("my.path.to.Class")
-@FieldName("myTestInstance")
 public class Test {
 
-    @MethodName("myMethod")
+    @Name("myMethod")
+    @Parameter({String.class})
     @Overwrite(Overwrite.Type.AFTER)
     public void method(Object instance, Object parameter1, ...) {
         System.out.println("test");
