@@ -9,29 +9,79 @@
 
 ## What is `Micartey`
 
-`Micartey` is a custom transformer which provides an easy way to change the method body of classes. The transformer will be used through the default `Instrumentation` which is provided by plain java using the java agent.
+`Micartey` is a custom transformer which provides an easy way to change the method body of classes. The transformer will be used through the default `Instrumentation` which is provided by plain java using the java agent. It depends on the [`javaassist`](https://github.com/jboss-javassist/javassist) library.
 
 ## How to use `Micartey`
 
+Let's assume that we have a class called `InjectMe` which look like following:
+
 ```java
+public class InjectMe {
+
+    private final String tag;
+
+    public InjectMe(String tag) {
+        this.tag = tag;
+    }
+
+    public void myMethod(String value) {
+        this.tag += value;
+    }
+}
+```
+
+and another class called `Daddy`:
+
+```java
+import me.clientastisch.micartey.transformer.annotations.*;
+
 @Field("myTestInstance")
-@Hook("my.path.to.Class")
-public class Test {
+@Hook("my.path.to.InjectMe")
+public class Daddy {
 
     @Name("myMethod")
     @Parameter({String.class})
-    @Overwrite(Overwrite.Type.AFTER)
-    public void method(Object instance, String parameter1) {
-        System.out.println("Hello World");
-    }
-
     @Overwrite(Overwrite.Type.BEFORE)
-    public void anotherMethod(Object instance, String parameter1) {
+    public void method() {
         System.out.println("Hello World!");
     }
 
 }
 ```
+
+`Daddy` will rewrite bytecode of the class `InjectMe` in the [`Heap`](https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-2.html). <br> The rewritten class will look like following:
+
+```java
+public class InjectMe {
+
+    private final Daddy myTestInstance = new Daddy();
+    private final String tag;
+
+    public InjectMe(String tag) {
+        this.tag = tag;
+    }
+
+    public void myMethod(String value) {
+        this.myTestInstance.method();
+        this.tag += value;
+    }
+}
+```
+
+As you can see, a `private` `final` field has been created with a name which can be specified using the `@Field` annotation above the `Daddy` class. This field will be initialized by creating a new instance of `Daddy`. It will be used to invoke the methods wich will be injected.
+
+<br>
+
+Not all annotations must be used. `@Name` is only necessery if the method names are different from each other and `@Parameter` is only necessery if there're multiple methods with the same name.
+
+```java
+@Overwrite(Overwrite.Type.BEFORE)
+public void myMethod(Object instance, String value) {
+    System.out.println(instance);
+}
+```
+
+Another important aspect are the parameters itself. It's not necessery that the method has any parameters, but if it has, the first will be the object instance of `InjectMe` and every following is a parameter of the method which will be overwritten.
 
 ### Command line
 
@@ -46,7 +96,7 @@ Premain-Class: my.path.to.Agent
 
 ```java
 public static void premain(String arguments, Instrumentation instrumentation) {
-    MicarteyTransformer transformer = new MicarteyTransformer(Test.class);
+    MicarteyTransformer transformer = new MicarteyTransformer(Daddy.class);
     instrumentation.addTransformer(transformer);
 }
 ```
@@ -62,7 +112,7 @@ Can-Retransform-Classes: true
 
 ```java
 public static void agentmain(String args, Instrumentation instrumentation) {
-    MicarteyTransformer transformer = new MicarteyTransformer(Test.class);
+    MicarteyTransformer transformer = new MicarteyTransformer(Daddy.class);
     transformer.retransform(instrumentation);
 }
 ```
