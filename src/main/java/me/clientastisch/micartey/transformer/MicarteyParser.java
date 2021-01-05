@@ -7,7 +7,7 @@ import me.clientastisch.micartey.transformer.annotations.Return;
 import java.lang.reflect.Executable;
 import java.util.Arrays;
 
-public class MicarteyParser<T extends Executable> {
+final class MicarteyParser<T extends Executable> {
 
     private final Class<?> target;
     private final T type;
