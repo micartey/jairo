@@ -11,4 +11,6 @@ public @interface Field {
 
     String value();
 
+    boolean isFinal() default true;
+
 }
