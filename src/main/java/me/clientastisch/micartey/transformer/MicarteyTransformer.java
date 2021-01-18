@@ -12,6 +12,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -126,17 +127,19 @@ public class MicarteyTransformer implements ClassFileTransformer {
         }).toArray(CtClass[]::new));
     }
 
+    @SuppressWarnings("all")
     private boolean match(String pattern, String parameter) {
-        if (parameter.split("~").length != 2)
-            return pattern.compareTo(parameter) == 0;
 
-        String part = parameter.split("~")[0];
-        String part2 = parameter.split("~")[1];
+        String backup = pattern;
+        for(String string : parameter.split("~")) {
+            if (string.length() > 1)
+                backup = backup.replace(string, "");
+        }
 
-        return pattern.substring(0, part.length()).compareTo(part) + pattern.substring(pattern.length() - part2.length()).compareTo(part2) == 0;
+        return String.format(parameter.replace("~", "%s"), backup.split("\\.")).compareTo(pattern) == 0;
     }
 
-
+    @SuppressWarnings("unused")
     public void retransform(Instrumentation instrumentation) {
         instrumentation.addTransformer(this, true);
 
