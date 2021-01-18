@@ -51,7 +51,7 @@ final class MicarteyParser<T extends Executable> {
     }
 
     public String buildField() {
-        StringBuilder builder = new StringBuilder("private final " + target.getName() + " " + field.value());
+        StringBuilder builder = new StringBuilder("private " + (field.isFinal() ? "final " : "") + target.getName() + " " + field.value());
 
         if (Arrays.stream(target.getConstructors()).noneMatch(constructor -> constructor.isAnnotationPresent(Overwrite.class))) {
             builder.append(" = new ").append(target.getName()).append("(");
