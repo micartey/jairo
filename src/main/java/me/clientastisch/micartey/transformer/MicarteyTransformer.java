@@ -36,6 +36,7 @@ import java.lang.reflect.Method;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class MicarteyTransformer implements ClassFileTransformer {
@@ -72,20 +73,21 @@ public class MicarteyTransformer implements ClassFileTransformer {
 
     @Override
     public byte[] transform(java.lang.ClassLoader loader, java.lang.String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws IllegalClassFormatException {
-        AtomicReference<byte[]> reference = new AtomicReference<>(classfileBuffer);
+        CtClass ctClass = Try.ofCallable(() -> this.classPool.get(className.replace("/", "."))).get();
 
         for(Class<?> target : this.observed) {
             if (!match(className.replace("/", "."), target.getAnnotation(Hook.class).value()))
                 continue;
 
-            CtClass ctClass = Try.ofCallable(() -> this.classPool.get(className.replace("/", "."))).getOrNull();
-
-            Try.run(() -> {
+            try {
                 MicarteyParser<?> parser = new MicarteyParser<>(null, target);
 
                 CtField ctField = CtField.make(parser.buildField(), ctClass);
                 ctClass.addField(ctField);
-            }).onFailure(Throwable::printStackTrace);
+            } catch(CannotCompileException exception) {
+                exception.printStackTrace();
+                return classfileBuffer;
+            }
 
             Arrays.stream(target.getConstructors()).filter(constructor -> constructor.isAnnotationPresent(Overwrite.class)).forEach(constructor -> {
                 Overwrite overwrite = constructor.getAnnotation(Overwrite.class);
@@ -134,13 +136,11 @@ public class MicarteyTransformer implements ClassFileTransformer {
 
                 }).onFailure(Throwable::printStackTrace);
             });
-
-            Try.ofCallable(ctClass::toBytecode)
-                    .onFailure(Throwable::printStackTrace)
-                    .onSuccess(reference::set);
         }
 
-        return reference.get();
+        return Try.ofCallable(ctClass::toBytecode)
+                .onFailure(Throwable::printStackTrace)
+                .getOrElse(classfileBuffer);
     }
 
     /**
