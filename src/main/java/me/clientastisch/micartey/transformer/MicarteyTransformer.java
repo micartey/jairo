@@ -82,6 +82,8 @@ public class MicarteyTransformer implements ClassFileTransformer {
             try {
                 MicarteyParser<?> parser = new MicarteyParser<>(null, target);
 
+                System.out.println(parser.buildField());
+
                 CtField ctField = CtField.make(parser.buildField(), ctClass);
                 ctClass.addField(ctField);
             } catch(CannotCompileException exception) {
@@ -236,7 +238,7 @@ public class MicarteyTransformer implements ClassFileTransformer {
         instrumentation.addTransformer(this, true);
 
         for (Class<?> target : instrumentation.getAllLoadedClasses()) {
-            observed.stream().filter(observe -> observe.getAnnotation(Hook.class).value().equals(target.getName())).forEach(value -> {
+            observed.stream().filter(observe -> match(target.getName(), observe.getAnnotation(Hook.class).value())).forEach(value -> {
                 Try.run(() -> {
                     instrumentation.retransformClasses(target);
                 }).onFailure(Throwable::printStackTrace);
