@@ -26,6 +26,8 @@ package me.clientastisch.micartey.transformer;
 
 import io.vavr.control.Try;
 import javassist.*;
+import me.clientastisch.micartey.parser.FieldParser;
+import me.clientastisch.micartey.parser.MethodParser;
 import me.clientastisch.micartey.transformer.annotations.*;
 
 import java.lang.instrument.ClassFileTransformer;
@@ -36,8 +38,7 @@ import java.lang.reflect.Method;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.Optional;
 
 public class MicarteyTransformer implements ClassFileTransformer {
 
@@ -64,9 +65,6 @@ public class MicarteyTransformer implements ClassFileTransformer {
         if (!Arrays.stream(arguments).allMatch(target -> target.isAnnotationPresent(Hook.class)))
             throw new IllegalStateException("Some classes are missing the annotation: " + Hook.class.getName());
 
-        if (!Arrays.stream(arguments).allMatch(target -> target.isAnnotationPresent(Field.class)))
-            throw new IllegalStateException("Some classes are missing the annotation: " + Field.class.getName());
-
         this.observed = Arrays.asList(arguments);
         this.classPool = ClassPool.getDefault();
     }
@@ -79,50 +77,38 @@ public class MicarteyTransformer implements ClassFileTransformer {
             if (!match(className.replace("/", "."), target.getAnnotation(Hook.class).value()))
                 continue;
 
-            try {
-                MicarteyParser<?> parser = new MicarteyParser<>(null, target);
+            Try.ofCallable(() -> {
+                if (!target.isAnnotationPresent(Field.class))
+                    return null;
 
-                System.out.println(parser.buildField());
+                Field field = target.getAnnotation(Field.class);
 
-                CtField ctField = CtField.make(parser.buildField(), ctClass);
+                String fieldHeader = new FieldParser(target)
+                        .setName(field.value())
+                        .setPrivate(field.isPrivate())
+                        .setFinal(field.isFinal())
+                        .build();
+
+                CtField ctField = CtField.make(fieldHeader, ctClass);
                 ctClass.addField(ctField);
-            } catch(CannotCompileException exception) {
-                exception.printStackTrace();
-                return classfileBuffer;
-            }
 
-            Arrays.stream(target.getConstructors()).filter(constructor -> constructor.isAnnotationPresent(Overwrite.class)).forEach(constructor -> {
-                Overwrite overwrite = constructor.getAnnotation(Overwrite.class);
-
-                Try.run(() -> {
-                    MicarteyParser<Constructor<?>> parser = new MicarteyParser<>(constructor, target);
-
-                    CtConstructor ctConstructor = this.getConstructor(ctClass, constructor);
-                    String instance = parser.buildInstance();
-
-                    switch (overwrite.value()) {
-                        case BEFORE:
-                            ctConstructor.insertBefore(instance);
-                            break;
-                        case AFTER:
-                            ctConstructor.insertAfter(instance);
-                            break;
-                        case REPLACE:
-                            ctConstructor.setBody(instance);
-                            break;
-                    }
-
-                }).onFailure(Throwable::printStackTrace);
-            });
+                return null;
+            }).onFailure(Throwable::printStackTrace);
 
             Arrays.stream(target.getMethods()).filter(method -> method.isAnnotationPresent(Overwrite.class)).forEach(method -> {
+                Optional<Return> returns = Optional.ofNullable(method.getAnnotation(Return.class));
+                Optional<Field> field = Optional.ofNullable(target.getAnnotation(Field.class));
                 Overwrite overwrite = method.getAnnotation(Overwrite.class);
 
                 Try.run(() -> {
-                    MicarteyParser<Method> parser = new MicarteyParser<>(method, target);
+                    MethodParser parser = new MethodParser(method, target)
+                            .useField(field.map(Field::value).orElse(null));
+
+                    if (returns.isPresent())
+                        parser.canReturn();
 
                     CtMethod ctMethod = this.getMethod(ctClass, method);
-                    String invoke = parser.buildInvoke();
+                    String invoke = parser.build();
 
                     switch (overwrite.value()) {
                         case BEFORE:
@@ -198,10 +184,11 @@ public class MicarteyTransformer implements ClassFileTransformer {
     private CtConstructor getConstructor(CtClass ctClass, Constructor<?> constructor) throws NotFoundException {
         Parameter parameter = constructor.getAnnotation(Parameter.class);
 
-        if (!constructor.isAnnotationPresent(Parameter.class))
+        if (!constructor.isAnnotationPresent(Parameter.class)) {
             return ctClass.getDeclaredConstructor(Arrays.stream(constructor.getParameterTypes()).map(Class::getName).map(it -> {
                 return Try.ofCallable(() -> this.classPool.get(it)).getOrNull();
             }).toArray(CtClass[]::new));
+        }
 
         return ctClass.getDeclaredConstructor(Arrays.stream(parameter.value()).map(Class::getName).map(var -> {
             return Try.ofCallable(() -> this.classPool.get(var)).getOrNull();
