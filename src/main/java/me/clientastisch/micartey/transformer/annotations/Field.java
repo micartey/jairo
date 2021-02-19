@@ -37,4 +37,5 @@ public @interface Field {
 
     boolean isFinal() default true;
 
+    boolean isPrivate() default true;
 }
