@@ -33,7 +33,7 @@ public class InjectMe {
 and another class called `Daddy`:
 
 ```java
-import me.jairo.jairo.annotation.*;
+import me.micartey.jairo.annotation.*;
 
 @Field("myTestInstance")
 @Hook("my.path.to.InjectMe")
