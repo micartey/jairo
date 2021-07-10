@@ -22,24 +22,17 @@
  * SOFTWARE.
  */
 
-package me.clientastisch.micartey;
+package me.micartey.jairo.annotation;
 
-import lombok.Getter;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.util.List;
+@Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
+@Retention(RetentionPolicy.RUNTIME)
+public @interface Parameter {
 
-public class MicarteyDependency {
-
-    @Getter private final ClassLoader classLoader;
-
-    public MicarteyDependency(List<URL> urls, ClassLoader parent) {
-        this.classLoader = URLClassLoader.newInstance(urls.toArray(new URL[0]), parent);
-    }
-
-    public MicarteyDependency(List<URL> urls) {
-        this(urls, MicarteyDependency.class.getClassLoader());
-    }
+    Class<?>[] value() default {};
 
 }

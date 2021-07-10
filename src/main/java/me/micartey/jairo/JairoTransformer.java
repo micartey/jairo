@@ -22,13 +22,14 @@
  * SOFTWARE.
  */
 
-package me.clientastisch.micartey.transformer;
+package me.micartey.jairo;
 
 import io.vavr.control.Try;
 import javassist.*;
-import me.clientastisch.micartey.parser.FieldParser;
-import me.clientastisch.micartey.parser.MethodParser;
-import me.clientastisch.micartey.transformer.annotations.*;
+import me.micartey.jairo.annotation.*;
+import me.micartey.jairo.parser.FieldParser;
+import me.micartey.jairo.parser.MethodParser;
+import me.clientastisch.micartey.annotation.*;
 
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
@@ -40,7 +41,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
-public class MicarteyTransformer implements ClassFileTransformer {
+public class JairoTransformer implements ClassFileTransformer {
 
     private final List<Class<?>> observed;
     private final ClassPool classPool;
@@ -61,7 +62,7 @@ public class MicarteyTransformer implements ClassFileTransformer {
      *
      * @param arguments List of observers
      */
-    public MicarteyTransformer(Class<?>... arguments) {
+    public JairoTransformer(Class<?>... arguments) {
         if (!Arrays.stream(arguments).allMatch(target -> target.isAnnotationPresent(Hook.class)))
             throw new IllegalStateException("Some classes are missing the annotation: " + Hook.class.getName());
 
@@ -70,7 +71,7 @@ public class MicarteyTransformer implements ClassFileTransformer {
     }
 
     @Override
-    public byte[] transform(java.lang.ClassLoader loader, java.lang.String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws IllegalClassFormatException {
+    public byte[] transform(java.lang.ClassLoader loader, java.lang.String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classFileBuffer) throws IllegalClassFormatException {
         CtClass ctClass = Try.ofCallable(() -> this.classPool.get(className.replace("/", "."))).get();
 
         for(Class<?> target : this.observed) {
@@ -105,7 +106,7 @@ public class MicarteyTransformer implements ClassFileTransformer {
                             .useField(field.map(Field::value).orElse(null));
 
                     if (returns.isPresent())
-                        parser.canReturn();
+                        parser.allowReturn();
 
                     CtMethod ctMethod = this.getMethod(ctClass, method);
                     String invoke = parser.build();
@@ -128,7 +129,7 @@ public class MicarteyTransformer implements ClassFileTransformer {
 
         return Try.ofCallable(ctClass::toBytecode)
                 .onFailure(Throwable::printStackTrace)
-                .getOrElse(classfileBuffer);
+                .getOrElse(classFileBuffer);
     }
 
     /**
@@ -215,7 +216,7 @@ public class MicarteyTransformer implements ClassFileTransformer {
     }
 
     /**
-     * Add {@linkplain MicarteyTransformer MicarteyTransformer} as a new
+     * Add {@linkplain JairoTransformer MicarteyTransformer} as a new
      * {@linkplain ClassFileTransformer ClassTransformer} and retransforms already loaded
      * classes.
      *

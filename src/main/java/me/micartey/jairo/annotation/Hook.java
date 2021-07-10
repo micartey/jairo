@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-package me.clientastisch.micartey.transformer.annotations;
+package me.micartey.jairo.annotation;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

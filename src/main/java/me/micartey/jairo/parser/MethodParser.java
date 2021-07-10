@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-package me.clientastisch.micartey.parser;
+package me.micartey.jairo.parser;
 
 import java.lang.reflect.Executable;
 import java.util.Arrays;
@@ -59,7 +59,7 @@ public class MethodParser extends Parser {
         return this;
     }
 
-    public MethodParser canReturn() {
+    public MethodParser allowReturn() {
         content = new StringBuilder(content.toString().replace("&0", "return "));
         return this;
     }

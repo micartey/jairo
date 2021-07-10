@@ -1,17 +1,17 @@
-# Micartey
+# jairo
 
-- [Micartey](#micartey)
-  - [What is `Micartey`](#what-is-micartey)
-  - [How to use `Micartey`](#how-to-use-micartey)
+- [jairo](#jairo)
+  - [What is `jairo`](#what-is-jairo)
+  - [How to use `jairo`](#how-to-use-jairo)
     - [Command line](#command-line)
     - [Injection](#injection)
 
 
-## What is `Micartey`
+## What is `jairo`
 
-`Micartey` is a custom transformer which provides an easy way to change the method body of classes. The transformer will be used through the default `Instrumentation` which is provided by plain java using the java agent. It depends on the [`javaassist`](https://github.com/jboss-javassist/javassist) library.
+`jairo` is a custom transformer which provides an easy way to change the method body of classes. The transformer will be used through the default `Instrumentation` which is provided by plain java using the java agent. It depends on the [`javaassist`](https://github.com/jboss-javassist/javassist) library.
 
-## How to use `Micartey`
+## How to use `jairo`
 
 Let's assume that we have a class called `InjectMe` looking as follows:
 
@@ -33,7 +33,7 @@ public class InjectMe {
 and another class called `Daddy`:
 
 ```java
-import me.clientastisch.micartey.transformer.annotations.*;
+import me.jairo.jairo.annotation.*;
 
 @Field("myTestInstance")
 @Hook("my.path.to.InjectMe")
@@ -96,7 +96,7 @@ Premain-Class: my.path.to.Agent
 
 ```java
 public static void premain(String arguments, Instrumentation instrumentation) {
-    MicarteyTransformer transformer = new MicarteyTransformer(Daddy.class);
+    JairoTransformer transformer = new JairoTransformer(Daddy.class);
     instrumentation.addTransformer(transformer);
 }
 ```
@@ -112,7 +112,7 @@ Can-Retransform-Classes: true
 
 ```java
 public static void agentmain(String args, Instrumentation instrumentation) {
-    MicarteyTransformer transformer = new MicarteyTransformer(Daddy.class);
+    JairoTransformer transformer = new JairoTransformer(Daddy.class);
     transformer.retransform(instrumentation);
 }
 ```

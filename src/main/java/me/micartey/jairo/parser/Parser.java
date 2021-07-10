@@ -22,15 +22,25 @@
  * SOFTWARE.
  */
 
-package me.clientastisch.micartey.transformer.annotations;
+package me.micartey.jairo.parser;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import java.lang.reflect.Executable;
 
-@Target(ElementType.METHOD)
-@Retention(RetentionPolicy.RUNTIME)
-public @interface Return {
+public abstract class Parser {
 
+    protected StringBuilder content = new StringBuilder();
+
+    protected final Executable executable;
+    protected final Class<?> target;
+
+    public Parser(Executable executable, Class<?> target) {
+        this.executable = executable;
+        this.target = target;
+    }
+
+    public String build() {
+        return content.toString()
+                .replaceAll("&.", "")
+                .replaceAll(" +", " ");
+    };
 }

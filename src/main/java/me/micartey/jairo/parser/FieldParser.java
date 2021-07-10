@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-package me.clientastisch.micartey.parser;
+package me.micartey.jairo.parser;
 
 import java.util.Arrays;
 
