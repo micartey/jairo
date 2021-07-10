@@ -29,7 +29,6 @@ import javassist.*;
 import me.micartey.jairo.annotation.*;
 import me.micartey.jairo.parser.FieldParser;
 import me.micartey.jairo.parser.MethodParser;
-import me.clientastisch.micartey.annotation.*;
 
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
