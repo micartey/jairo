@@ -15,10 +15,6 @@ jobs:
       - uses: FantasticFiasco/action-update-license-year@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          path: src/**/*.java
-      - uses: FantasticFiasco/action-update-license-year@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           branchName: license/{{currentYear}}
           commitTitle: "chore: update license year"
           commitBody: Let's keep legal happy.
