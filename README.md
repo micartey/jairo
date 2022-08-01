@@ -109,7 +109,7 @@ public class TargetInjector {
 }
 ```
 
-As you can see, the `@Field` annotations was also added. This annotation is very important as it specifies the instance name of the global parameter which will be added in order to hold an instance of `TargetInjector` inside `Target`.
+As you can see, the `@Field` annotations was also added. This annotation is very important as it specifies the instance name of the global variable which will be added in order to hold an instance of `TargetInjector` inside `Target`.
 
 The following section illustrates what is happening to the `Target` class at runtime:
 
@@ -128,7 +128,7 @@ Next up is to overwrite a method. Let's assume that you have a method called `aa
 
 ```java
 public int addNumbers(int a, int b) {
-	return a + b;
+    return a + b;
 }
 ```
 
@@ -138,7 +138,7 @@ And we want to print both numbers out before the are being calculated for some r
 @Name("addNumber")
 @Overwrite(Overwrite.Type.BEFORE)
 public void printNumbersBeforeAdding(Object instance, int a, int b) {
-	System.out.println(String.format("a: %s b: %s", a, b));
+    System.out.println(String.format("a: %s b: %s", a, b));
 }
 ```
 
