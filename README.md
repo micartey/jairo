@@ -124,7 +124,7 @@ public class Target {
 
 ### Overwrite a method
 
-Next up is to overwrite a method. Let's assume that you have a method called `aadNumbers` as follows:
+Next up is to overwrite a method. Let's assume that you have a method called `addNumbers` as follows:
 
 ```java
 public int addNumbers(int a, int b) {
@@ -142,7 +142,7 @@ public void printNumbersBeforeAdding(Object instance, int a, int b) {
 }
 ```
 
-<!-- ## 💉 Injecting into a JVM
+## 💉 Injecting into a JVM
 
 There are different ways to inject into a JVM. The best option is to specify a javaagent with the start-up command. This will ensure that the transformations will be applied, since classes don't have to be retransformed.
 
@@ -178,4 +178,4 @@ public static void agentmain(String args, Instrumentation instrumentation) {
     JairoTransformer transformer = new JairoTransformer(Daddy.class);
     transformer.retransform(instrumentation);
 }
-``` -->
+```
