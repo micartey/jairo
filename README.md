@@ -36,7 +36,7 @@ jairo is a custom transformer which provides an easy way to change the method bo
 
 ### Motivation
 
-Changing code at runtime makes a lot of things easier. E.g. if you want to trigger an event after a class is created or a method is invoked whose implementation you have no control over. Maybe you wan't to benchmark a method which is privat and thus not callable with normal means. In such cases, it could be pleasent to just rewrite implementations at runtime without having to download, decompile, edit and recompile your dependencies.
+Changing code at runtime makes a lot of things easier. E.g. if you want to trigger an event after a class is created or a method is invoked whose implementation you have no control over. Maybe you wan't to benchmark a method etc... In such cases, it could be pleasent to just rewrite implementations at runtime without having to download, decompile, edit and recompile your dependencies.
 
 
 ## 🔗 Build Tools
@@ -71,7 +71,7 @@ Lastly, after adding the repository to all your other repositories, you have to 
 A good way to get started, is to check out the [javadoc](https://clientastisch.github.io/jairo/docs) in order to get an overview of available annotations as they are the key in order to control the behavior. There are a total of [6 annotations](https://clientastisch.github.io/jairo/docs/me/micartey/jairo/annotation/package-summary.html) you have to know and use.
 
 <details open>
-<summary> Expand fo an overview of available annotations </summary>
+<summary> Expand for an overview of available annotations </summary>
 <br>
 
 | Annotation | Description | Scope    | |
@@ -141,6 +141,7 @@ public void printNumbersBeforeAdding(Object instance, int a, int b) {
     System.out.println(String.format("a: %s b: %s", a, b));
 }
 ```
+
 
 ## 💉 Injecting into a JVM
 
