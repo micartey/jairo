@@ -7,13 +7,13 @@
       height="30"
     />
   </a>
-  <a href="https://jitpack.io/#Clientastisch/jairo/main-SNAPSHOT">
+  <a href="https://jitpack.io/#micartey/jairo/main-SNAPSHOT">
     <img
       src="https://img.shields.io/badge/jitpack-main-%2321f21?style=for-the-badge"
       height="30"
     />
   </a>
-  <a href="https://clientastisch.github.io/jairo/docs" target="_blank">
+  <a href="https://micartey.github.io/jairo/docs" target="_blank">
     <img
       src="https://img.shields.io/badge/javadoc-reference-5272B4.svg?style=for-the-badge"
       height="30"
@@ -41,7 +41,7 @@ Changing code at runtime makes a lot of things easier. E.g. if you want to trigg
 
 ## 🔗 Build Tools
 
-To use jairo as a dependency you might want to use a build tool like maven or gradle. An easy way for each and every project, is to use [jitpack](https://jitpack.io/#Clientastisch/jairo/main-SNAPSHOT) as it makes it easy to implement and use. The following example is for maven specific, as I personally don't use gradle that much.
+To use jairo as a dependency you might want to use a build tool like maven or gradle. An easy way for each and every project, is to use [jitpack](https://jitpack.io/#micartey/jairo/main-SNAPSHOT) as it makes it easy to implement and use. The following example is for maven specific, as I personally don't use gradle that much.
 
 ### Maven
 
@@ -60,7 +60,7 @@ Lastly, after adding the repository to all your other repositories, you have to 
 
 ```xml
 <dependency>
-    <groupId>com.github.Clientastisch</groupId>
+    <groupId>com.github.micartey</groupId>
     <artifactId>jairo</artifactId>
     <version>main-SNAPSHOT</version>
 </dependency>
@@ -68,7 +68,7 @@ Lastly, after adding the repository to all your other repositories, you have to 
 
 ## 🎈 Getting started
 
-A good way to get started, is to check out the [javadoc](https://clientastisch.github.io/jairo/docs) in order to get an overview of available annotations as they are the key in order to control the behavior. There are a total of [6 annotations](https://clientastisch.github.io/jairo/docs/me/micartey/jairo/annotation/package-summary.html) you have to know and use.
+A good way to get started, is to check out the [javadoc](https://micartey.github.io/jairo/docs) in order to get an overview of available annotations as they are the key in order to control the behavior. There are a total of [6 annotations](https://micartey.github.io/jairo/docs/me/micartey/jairo/annotation/package-summary.html) you have to know and use.
 
 <details open>
 <summary> Expand for an overview of available annotations </summary>
@@ -76,12 +76,12 @@ A good way to get started, is to check out the [javadoc](https://clientastisch.g
 
 | Annotation | Description | Scope    | |
 |------------|-------------|----------|-|
-| [@Field](https://clientastisch.github.io/jairo/docs/me/micartey/jairo/annotation/Field.html)     | The `@Field` annotation is used to specify the parameter name at runtime. Make sure to avoid name collisions | Class |
-| [@Hook](https://clientastisch.github.io/jairo/docs/me/micartey/jairo/annotation/Hook.html) | The `@Hook` annotation specifies on which class the injection should be applied | Class |
-| [@Name](https://clientastisch.github.io/jairo/docs/me/micartey/jairo/annotation/Name.html) | The `@Name` annotation is used in case your method name deffers from the method you are trying to inject. | Method | optional |
-| [@Overwrite](https://clientastisch.github.io/jairo/docs/me/micartey/jairo/annotation/Overwrite.html) | The `@Overwrite` annotation specifies which type of injection should be used. You can choose between: <ul><li>Before</li><li>After</li><li>Replace</li></ul> | Method |
-| [@Parameter](https://clientastisch.github.io/jairo/docs/me/micartey/jairo/annotation/Parameter.html) | The `@Parameter` annotation is only used in case many methods in a class share the same name. While they can share the same name, they cannot share the same signature. By specifiying the method parameters of the target method, the right method can be injected | Method | optional |
-| [@Return](https://clientastisch.github.io/jairo/docs/me/micartey/jairo/annotation/Return.html) | The `@Return` annotation can only be used with `Overwrite.Type.Replace` and will replace the target methods content with a return statement | Method | optional |
+| [@Field](https://micartey.github.io/jairo/docs/me/micartey/jairo/annotation/Field.html)     | The `@Field` annotation is used to specify the parameter name at runtime. Make sure to avoid name collisions | Class |
+| [@Hook](https://micartey.github.io/jairo/docs/me/micartey/jairo/annotation/Hook.html) | The `@Hook` annotation specifies on which class the injection should be applied | Class |
+| [@Name](https://micartey.github.io/jairo/docs/me/micartey/jairo/annotation/Name.html) | The `@Name` annotation is used in case your method name deffers from the method you are trying to inject. | Method | optional |
+| [@Overwrite](https://micartey.github.io/jairo/docs/me/micartey/jairo/annotation/Overwrite.html) | The `@Overwrite` annotation specifies which type of injection should be used. You can choose between: <ul><li>Before</li><li>After</li><li>Replace</li></ul> | Method |
+| [@Parameter](https://micartey.github.io/jairo/docs/me/micartey/jairo/annotation/Parameter.html) | The `@Parameter` annotation is only used in case many methods in a class share the same name. While they can share the same name, they cannot share the same signature. By specifiying the method parameters of the target method, the right method can be injected | Method | optional |
+| [@Return](https://micartey.github.io/jairo/docs/me/micartey/jairo/annotation/Return.html) | The `@Return` annotation can only be used with `Overwrite.Type.Replace` and will replace the target methods content with a return statement | Method | optional |
 
 </details>
 
