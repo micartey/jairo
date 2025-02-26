@@ -1,10 +1,10 @@
 package me.micartey.jairo;
 
 import io.vavr.control.Try;
-import javassist.*;
 import me.micartey.jairo.annotation.*;
 import me.micartey.jairo.parser.FieldParser;
 import me.micartey.jairo.parser.MethodParser;
+import org.objectweb.asm.*;
 
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
@@ -19,7 +19,6 @@ import java.util.Optional;
 public class JairoTransformer implements ClassFileTransformer {
 
     private final List<Class<?>> observed;
-    private final ClassPool classPool;
 
     /**
      * Add a list of {@linkplain Class observers} to define rules for
@@ -42,73 +41,86 @@ public class JairoTransformer implements ClassFileTransformer {
             throw new IllegalStateException("Some classes are missing the annotation: " + Hook.class.getName());
 
         this.observed = Arrays.asList(arguments);
-        this.classPool = ClassPool.getDefault();
     }
 
     @Override
     public byte[] transform(java.lang.ClassLoader loader, java.lang.String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classFileBuffer) throws IllegalClassFormatException {
-        CtClass ctClass = Try.ofCallable(() -> this.classPool.get(className.replace("/", "."))).get();
+        ClassReader classReader = new ClassReader(classFileBuffer);
+        ClassWriter classWriter = new ClassWriter(classReader, ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+        ClassVisitor classVisitor = new ClassVisitor(Opcodes.ASM9, classWriter) {
+            @Override
+            public void visitEnd() {
+                for (Class<?> target : observed) {
+                    if (!match(className.replace("/", "."), target.getAnnotation(Hook.class).value()))
+                        continue;
 
-        for(Class<?> target : this.observed) {
-            if (!match(className.replace("/", "."), target.getAnnotation(Hook.class).value()))
-                continue;
+                    if (target.isAnnotationPresent(Field.class)) {
+                        Field field = target.getAnnotation(Field.class);
+                        String fieldHeader = new FieldParser(target)
+                                .setName(field.value())
+                                .setPrivate(field.isPrivate())
+                                .setFinal(field.isFinal())
+                                .build();
 
-            Try.ofCallable(() -> {
-                if (!target.isAnnotationPresent(Field.class))
-                    return null;
-
-                Field field = target.getAnnotation(Field.class);
-
-                String fieldHeader = new FieldParser(target)
-                        .setName(field.value())
-                        .setPrivate(field.isPrivate())
-                        .setFinal(field.isFinal())
-                        .build();
-
-                CtField ctField = CtField.make(fieldHeader, ctClass);
-                ctClass.addField(ctField);
-
-                return null;
-            }).onFailure(Throwable::printStackTrace);
-
-            Arrays.stream(target.getMethods()).filter(method -> method.isAnnotationPresent(Overwrite.class)).forEach(method -> {
-                Optional<Return> returns = Optional.ofNullable(method.getAnnotation(Return.class));
-                Optional<Field> field = Optional.ofNullable(target.getAnnotation(Field.class));
-                Overwrite overwrite = method.getAnnotation(Overwrite.class);
-
-                Try.run(() -> {
-                    MethodParser parser = new MethodParser(method, target)
-                            .useField(field.map(Field::value).orElse(null));
-
-                    if (returns.isPresent())
-                        parser.allowReturn();
-
-                    CtMethod ctMethod = this.getMethod(ctClass, method);
-                    String invoke = parser.build();
-
-                    switch (overwrite.value()) {
-                        case BEFORE:
-                            ctMethod.insertBefore(invoke);
-                            break;
-                        case AFTER:
-                            ctMethod.insertAfter(invoke);
-                            break;
-                        case REPLACE:
-                            ctMethod.setBody(invoke);
-                            break;
+                        FieldVisitor fieldVisitor = cv.visitField(
+                                field.isPrivate() ? Opcodes.ACC_PRIVATE : Opcodes.ACC_PUBLIC,
+                                field.value(),
+                                Type.getDescriptor(target),
+                                null,
+                                null
+                        );
+                        fieldVisitor.visitEnd();
                     }
 
-                }).onFailure(Throwable::printStackTrace);
-            });
-        }
+                    Arrays.stream(target.getMethods()).filter(method -> method.isAnnotationPresent(Overwrite.class)).forEach(method -> {
+                        Optional<Return> returns = Optional.ofNullable(method.getAnnotation(Return.class));
+                        Optional<Field> field = Optional.ofNullable(target.getAnnotation(Field.class));
+                        Overwrite overwrite = method.getAnnotation(Overwrite.class);
 
-        return Try.ofCallable(ctClass::toBytecode)
-                .onFailure(Throwable::printStackTrace)
-                .getOrElse(classFileBuffer);
+                        MethodVisitor methodVisitor = cv.visitMethod(
+                                Opcodes.ACC_PUBLIC,
+                                method.getName(),
+                                Type.getMethodDescriptor(method),
+                                null,
+                                null
+                        );
+
+                        methodVisitor.visitCode();
+                        MethodParser parser = new MethodParser(method, target)
+                                .useField(field.map(Field::value).orElse(null));
+
+                        if (returns.isPresent())
+                            parser.allowReturn();
+
+                        String invoke = parser.build();
+
+                        switch (overwrite.value()) {
+                            case BEFORE:
+                                methodVisitor.visitMethodInsn(Opcodes.INVOKESTATIC, className, method.getName(), invoke, false);
+                                break;
+                            case AFTER:
+                                methodVisitor.visitInsn(Opcodes.RETURN);
+                                methodVisitor.visitMethodInsn(Opcodes.INVOKESTATIC, className, method.getName(), invoke, false);
+                                break;
+                            case REPLACE:
+                                methodVisitor.visitMethodInsn(Opcodes.INVOKESTATIC, className, method.getName(), invoke, false);
+                                break;
+                        }
+
+                        methodVisitor.visitMaxs(0, 0);
+                        methodVisitor.visitEnd();
+                    });
+                }
+                super.visitEnd();
+            }
+        };
+
+        classReader.accept(classVisitor, 0);
+        return classWriter.toByteArray();
     }
 
     /**
-     * Finds a {@linkplain CtMethod CtMethod} according to the pattern presented by
+     * Finds a {@linkplain Method Method} according to the pattern presented by
      * one of the following:
      *
      * <ul>
@@ -120,27 +132,25 @@ public class JairoTransformer implements ClassFileTransformer {
      *     </li>
      * </ul>
      *
-     * @param ctClass Class to rewrite
+     * @param className Class to rewrite
      * @param method Method of the observing class
-     * @return {@linkplain CtMethod CtMethod} which is suitable for the {@linkplain Method Method}
-     * @throws NotFoundException Exception is thrown if no {@linkplain CtMethod CtMethod} is found
+     * @return {@linkplain Method Method} which is suitable for the {@linkplain Method Method}
+     * @throws NoSuchMethodException Exception is thrown if no {@linkplain Method Method} is found
      */
-    private CtMethod getMethod(CtClass ctClass, Method method) throws NotFoundException {
+    private Method getMethod(String className, Method method) throws NoSuchMethodException, ClassNotFoundException {
         Parameter parameter = method.getAnnotation(Parameter.class);
         Name name = method.getAnnotation(Name.class);
 
         String methodName = name != null ? name.value() : method.getName();
 
         if (!method.isAnnotationPresent(Parameter.class))
-            return ctClass.getDeclaredMethod(methodName);
+            return Class.forName(className).getDeclaredMethod(methodName);
 
-        return ctClass.getDeclaredMethod(methodName, Arrays.stream(parameter.value()).map(Class::getName).map(var -> {
-            return Try.ofCallable(() -> this.classPool.get(var)).getOrNull();
-        }).toArray(CtClass[]::new));
+        return Class.forName(className).getDeclaredMethod(methodName, parameter.value());
     }
 
     /**
-     * Finds a {@linkplain CtConstructor CtConstructor} according to the pattern presented by
+     * Finds a {@linkplain Constructor Constructor} according to the pattern presented by
      * one of the following:
      *
      * <ul>
@@ -152,23 +162,19 @@ public class JairoTransformer implements ClassFileTransformer {
      *     </li>
      * </ul>
      *
-     * @param ctClass Class to rewrite
+     * @param className Class to rewrite
      * @param constructor Constructor of the observing class
-     * @return {@linkplain CtConstructor CtConstructor} which is suitable for the {@linkplain Constructor Constructor}
-     * @throws NotFoundException Exception is thrown if no {@linkplain CtConstructor CtConstructor} is found
+     * @return {@linkplain Constructor Constructor} which is suitable for the {@linkplain Constructor Constructor}
+     * @throws NoSuchMethodException Exception is thrown if no {@linkplain Constructor Constructor} is found
      */
-    private CtConstructor getConstructor(CtClass ctClass, Constructor<?> constructor) throws NotFoundException {
+    private Constructor<?> getConstructor(String className, Constructor<?> constructor) throws NoSuchMethodException, ClassNotFoundException {
         Parameter parameter = constructor.getAnnotation(Parameter.class);
 
         if (!constructor.isAnnotationPresent(Parameter.class)) {
-            return ctClass.getDeclaredConstructor(Arrays.stream(constructor.getParameterTypes()).map(Class::getName).map(it -> {
-                return Try.ofCallable(() -> this.classPool.get(it)).getOrNull();
-            }).toArray(CtClass[]::new));
+            return Class.forName(className).getDeclaredConstructor(constructor.getParameterTypes());
         }
 
-        return ctClass.getDeclaredConstructor(Arrays.stream(parameter.value()).map(Class::getName).map(var -> {
-            return Try.ofCallable(() -> this.classPool.get(var)).getOrNull();
-        }).toArray(CtClass[]::new));
+        return Class.forName(className).getDeclaredConstructor(parameter.value());
     }
 
     /**

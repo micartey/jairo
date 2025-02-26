@@ -1,5 +1,7 @@
 package me.micartey.jairo.parser;
 
+import org.objectweb.asm.*;
+
 import java.lang.reflect.Executable;
 
 public abstract class Parser {

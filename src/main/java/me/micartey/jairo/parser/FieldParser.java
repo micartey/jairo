@@ -1,6 +1,6 @@
 package me.micartey.jairo.parser;
 
-import java.util.Arrays;
+import org.objectweb.asm.*;
 
 public class FieldParser extends Parser {
 
@@ -9,6 +9,7 @@ public class FieldParser extends Parser {
 
         content.append("&0 &1 ").append(target.getName()).append(" ").append("&2").append(" = new ").append(target.getName()).append("(");
 
+        // Check if the constructor has one parameter
         if (Arrays.stream(target.getConstructors()).anyMatch(constructor -> constructor.getParameterCount() == 1))
             content.append("this");
 
