@@ -380,11 +380,19 @@ public class JairoClassVisitor extends ClassVisitor {
         }
       }
 
-      Type[] argTypes = Type.getArgumentTypes(methodDesc);
+      Class<?>[] hookParams = hookMethod.getParameterTypes();
+      Type[] targetArgTypes = Type.getArgumentTypes(methodDesc);
+
+      int hookParamIndex = 0;
+      if (hookParams.length > 0 && hookParams[0] == Object.class && hookParams.length == targetArgTypes.length + 1) {
+        mv.visitVarInsn(ALOAD, 0);
+        hookParamIndex = 1;
+      }
+
       int varIndex = 1;
-      for (int i = 0; i < argTypes.length; i++) {
-        mv.visitVarInsn(argTypes[i].getOpcode(ILOAD), varIndex);
-        varIndex += argTypes[i].getSize();
+      for (int i = 0; i < targetArgTypes.length; i++) {
+        mv.visitVarInsn(targetArgTypes[i].getOpcode(ILOAD), varIndex);
+        varIndex += targetArgTypes[i].getSize();
       }
 
       String hookDescriptor = Type.getMethodDescriptor(hookMethod);
