@@ -32,11 +32,11 @@
 
 ## 📚 Introduction
 
-jairo is a custom transformer which provides an easy way to change the method body of classes. The transformer will be used through the `Instrumentation` which is provided by java using the java agent. It heavily depends on the [javaassist](https://github.com/jboss-javassist/javassist) library to change the bytecode at runtime.
+jairo is a custom transformer which provides an easy way to change the method body of classes. The transformer will be used through the `Instrumentation` which is provided by java using the java agent. It heavily depends on the asm library to change the bytecode at runtime.
 
 ### Motivation
 
-Changing code at runtime makes a lot of things easier. E.g. if you want to trigger an event after a class is created or a method is invoked whose implementation you have no control over. Maybe you wan't to benchmark a method etc... In such cases, it could be pleasent to just rewrite implementations at runtime without having to download, decompile, edit and recompile your dependencies.
+Changing code at runtime makes a lot of things easier. E.g. if you are reverse engeneering something, want to trigger an event after a class is created or a method is invoked whose implementation you have no control over. Maybe you want to benchmark a method etc... In such cases, it could be pleasent to just rewrite implementations at runtime without having to download, decompile, edit and recompile your dependencies.
 
 
 ## 🔗 Build Tools
