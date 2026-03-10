@@ -1,202 +1,63 @@
 package me.micartey.jairo;
 
 import io.vavr.control.Try;
-import javassist.*;
 import me.micartey.jairo.annotation.*;
-import me.micartey.jairo.parser.FieldParser;
-import me.micartey.jairo.parser.MethodParser;
+import me.micartey.jairo.asm.JairoClassVisitor;
+
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassWriter;
 
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
 import java.lang.instrument.Instrumentation;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 
 public class JairoTransformer implements ClassFileTransformer {
 
     private final List<Class<?>> observed;
-    private final ClassPool classPool;
 
-    /**
-     * Add a list of {@linkplain Class observers} to define rules for
-     * transforming classes.
-     *
-     * Observers need following annotations:
-     * <ul>
-     *     <li>
-     *          {@linkplain Field Field} annotation
-     *     </li>
-     *     <li>
-     *          {@linkplain Hook Hook} annotation
-     *     </li>
-     * </ul>
-     *
-     * @param arguments List of observers
-     */
     public JairoTransformer(Class<?>... arguments) {
         if (!Arrays.stream(arguments).allMatch(target -> target.isAnnotationPresent(Hook.class)))
             throw new IllegalStateException("Some classes are missing the annotation: " + Hook.class.getName());
 
         this.observed = Arrays.asList(arguments);
-        this.classPool = ClassPool.getDefault();
     }
 
     @Override
-    public byte[] transform(java.lang.ClassLoader loader, java.lang.String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classFileBuffer) throws IllegalClassFormatException {
-        CtClass ctClass = Try.ofCallable(() -> this.classPool.get(className.replace("/", "."))).get();
+    public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classFileBuffer) throws IllegalClassFormatException {
+        String dotClassName = className.replace("/", ".");
 
-        for(Class<?> target : this.observed) {
-            if (!match(className.replace("/", "."), target.getAnnotation(Hook.class).value()))
+        for (Class<?> target : this.observed) {
+            if (!match(dotClassName, target.getAnnotation(Hook.class).value()))
                 continue;
 
-            Try.ofCallable(() -> {
-                if (!target.isAnnotationPresent(Field.class))
-                    return null;
-
-                Field field = target.getAnnotation(Field.class);
-
-                String fieldHeader = new FieldParser(target)
-                        .setName(field.value())
-                        .setPrivate(field.isPrivate())
-                        .setFinal(field.isFinal())
-                        .build();
-
-                CtField ctField = CtField.make(fieldHeader, ctClass);
-                ctClass.addField(ctField);
-
-                return null;
-            }).onFailure(Throwable::printStackTrace);
-
-            Arrays.stream(target.getMethods()).filter(method -> method.isAnnotationPresent(Overwrite.class)).forEach(method -> {
-                Optional<Return> returns = Optional.ofNullable(method.getAnnotation(Return.class));
-                Optional<Field> field = Optional.ofNullable(target.getAnnotation(Field.class));
-                Overwrite overwrite = method.getAnnotation(Overwrite.class);
-
-                Try.run(() -> {
-                    MethodParser parser = new MethodParser(method, target)
-                            .useField(field.map(Field::value).orElse(null));
-
-                    if (returns.isPresent())
-                        parser.allowReturn();
-
-                    CtMethod ctMethod = this.getMethod(ctClass, method);
-                    String invoke = parser.build();
-
-                    switch (overwrite.value()) {
-                        case BEFORE:
-                            ctMethod.insertBefore(invoke);
-                            break;
-                        case AFTER:
-                            ctMethod.insertAfter(invoke);
-                            break;
-                        case REPLACE:
-                            ctMethod.setBody(invoke);
-                            break;
-                    }
-
-                }).onFailure(Throwable::printStackTrace);
-            });
+            try {
+                ClassReader reader = new ClassReader(classFileBuffer);
+                ClassWriter writer = new ClassWriter(reader, ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+                JairoClassVisitor visitor = new JairoClassVisitor(writer, target);
+                reader.accept(visitor, ClassReader.EXPAND_FRAMES);
+                classFileBuffer = writer.toByteArray();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
 
-        return Try.ofCallable(ctClass::toBytecode)
-                .onFailure(Throwable::printStackTrace)
-                .getOrElse(classFileBuffer);
+        return classFileBuffer;
     }
 
-    /**
-     * Finds a {@linkplain CtMethod CtMethod} according to the pattern presented by
-     * one of the following:
-     *
-     * <ul>
-     *     <li>
-     *         Annotation {@linkplain Parameter @Parameter}
-     *     </li>
-     *     <li>
-     *          Method name
-     *     </li>
-     * </ul>
-     *
-     * @param ctClass Class to rewrite
-     * @param method Method of the observing class
-     * @return {@linkplain CtMethod CtMethod} which is suitable for the {@linkplain Method Method}
-     * @throws NotFoundException Exception is thrown if no {@linkplain CtMethod CtMethod} is found
-     */
-    private CtMethod getMethod(CtClass ctClass, Method method) throws NotFoundException {
-        Parameter parameter = method.getAnnotation(Parameter.class);
-        Name name = method.getAnnotation(Name.class);
-
-        String methodName = name != null ? name.value() : method.getName();
-
-        if (!method.isAnnotationPresent(Parameter.class))
-            return ctClass.getDeclaredMethod(methodName);
-
-        return ctClass.getDeclaredMethod(methodName, Arrays.stream(parameter.value()).map(Class::getName).map(var -> {
-            return Try.ofCallable(() -> this.classPool.get(var)).getOrNull();
-        }).toArray(CtClass[]::new));
-    }
-
-    /**
-     * Finds a {@linkplain CtConstructor CtConstructor} according to the pattern presented by
-     * one of the following:
-     *
-     * <ul>
-     *     <li>
-     *         Annotations like {@linkplain Parameter @Parameter}
-     *     </li>
-     *     <li>
-     *          Method {@link java.lang.reflect.Constructor#getTypeParameters signature}
-     *     </li>
-     * </ul>
-     *
-     * @param ctClass Class to rewrite
-     * @param constructor Constructor of the observing class
-     * @return {@linkplain CtConstructor CtConstructor} which is suitable for the {@linkplain Constructor Constructor}
-     * @throws NotFoundException Exception is thrown if no {@linkplain CtConstructor CtConstructor} is found
-     */
-    private CtConstructor getConstructor(CtClass ctClass, Constructor<?> constructor) throws NotFoundException {
-        Parameter parameter = constructor.getAnnotation(Parameter.class);
-
-        if (!constructor.isAnnotationPresent(Parameter.class)) {
-            return ctClass.getDeclaredConstructor(Arrays.stream(constructor.getParameterTypes()).map(Class::getName).map(it -> {
-                return Try.ofCallable(() -> this.classPool.get(it)).getOrNull();
-            }).toArray(CtClass[]::new));
-        }
-
-        return ctClass.getDeclaredConstructor(Arrays.stream(parameter.value()).map(Class::getName).map(var -> {
-            return Try.ofCallable(() -> this.classPool.get(var)).getOrNull();
-        }).toArray(CtClass[]::new));
-    }
-
-    /**
-     * Makes sure that both {@linkplain String parameters} matches according to
-     * their pattern
-     *
-     * @param match classname of the class which will be transformed
-     * @param pattern pattern to match the classname
-     * @return Whether pattern matches classname
-     */
     private boolean match(String match, String pattern) {
         String backup = match;
 
-        for(String string : pattern.split("~")) {
+        for (String string : pattern.split("~")) {
             if (string.length() > 1)
                 backup = backup.replace(string, "");
         }
 
-        return String.format(pattern.replace("~", "%s"), backup.split("\\.")).compareTo(match) == 0;
+        return String.format(pattern.replace("~", "%s"), (Object[]) backup.split("\\.")).compareTo(match) == 0;
     }
 
-    /**
-     * Add {@linkplain JairoTransformer MicarteyTransformer} as a new
-     * {@linkplain ClassFileTransformer ClassTransformer} and retransforms already loaded
-     * classes.
-     *
-     * @param instrumentation Instrumentation of Java-agent
-     */
     public void retransform(Instrumentation instrumentation) {
         instrumentation.addTransformer(this, true);
 
