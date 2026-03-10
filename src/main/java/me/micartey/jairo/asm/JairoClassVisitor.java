@@ -230,9 +230,7 @@ public class JairoClassVisitor extends ClassVisitor {
 
     @Override
     public void visitMaxs(int maxStack, int maxLocals) {
-      if (overwrite.value() != Overwrite.Type.REPLACE) {
-        super.visitMaxs(maxStack, maxLocals);
-      }
+      super.visitMaxs(maxStack, maxLocals);
     }
 
     @Override
