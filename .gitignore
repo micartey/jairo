@@ -1,6 +1,11 @@
 /.idea/
+/.settings/
 /target/
 /runtime/
 
 *.iml
 *.bat
+.classpath
+.project
+.factorypath
+dependency-*-pom.xml
